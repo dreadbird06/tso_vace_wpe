@@ -2,7 +2,6 @@
 author: Joon-Young Yang (E-mail: dreadbird06@gmail.com)
 """
 import re
-import numpy as np
 
 import torch
 import torch.nn as nn
@@ -83,7 +82,7 @@ class CustomModel(nn.Module):
     num_params = 0
     for param in self.parameters():
       # if param.requires_grad:
-      num_params += np.prod(param.size())
+      num_params += param.numel()
     return num_params/float(1e+6)
 
   def freeze(self):
