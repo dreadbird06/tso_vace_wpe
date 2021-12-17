@@ -118,7 +118,6 @@ def run_vace_wpe(wpath, prefix, pretrain_opt='late', simp_opt='b'):
     ## The input audio is in shape (batch, samples) (always assume #channels == 1)
     enh = dnn_vwpe.dereverb(
       aud.to(device), delay=delay, taps=taps2) # (t,)
-    print(np.abs(enh).sum())
   ## Save
   output_wav_path = f'data/{prefix}-vace_wpe_taps{taps2}.wav'
   sf.write(output_wav_path, data=enh, samplerate=fs)
@@ -181,7 +180,6 @@ def run_neural_wpe(wpath, chs='single', dtype=torch.float64):
     enh = dnn_wpe(
       aud.to(device), delay=delay, taps=taps, dtype=dtype) # (t,)
   enh = to_arr(enh).squeeze() # convert to numpy array and squeeze
-  print(np.abs(enh).sum())
   ## Save
   if chs == 'dual':
     enh = enh[0] # only save the first channel
