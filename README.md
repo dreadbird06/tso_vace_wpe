@@ -2,7 +2,7 @@
 Official implementation of the weighted prediction error (WPE) algorithm variants presented in [[1]](#1).
 
 <a id="1">[1]</a> 
-J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linear Prediction-based Speech Dereverberation Front-End for Far-Field Speaker Verification," *arXiv:2112.13569*, 2021. [link](https://arxiv.org/abs/2112.13569)
+J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linear Prediction-based Speech Dereverberation Front-End for Far-Field Speaker Verification," *arXiv:2112.13569*, 2021. ([link](https://arxiv.org/abs/2112.13569))
 
 ## Description
 
