@@ -1,5 +1,5 @@
 # tso_vace_wpe
-Official implementation of the weighted prediction error (WPE) algorithm variants presented in:
+Official implementation of the weighted prediction error (WPE) algorithm variants presented in [[1]](#1).
 
 <a id="1">[1]</a> 
 J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linear Prediction-based Speech Dereverberation Front-End for Far-Field Speaker Verification," *arXiv:2112.13569*, 2021.
@@ -35,10 +35,6 @@ Any advise for common problems or issues.
 command to run if program contains helper info
 ```
 
-## Authors
-
-Contributors names and contact info
-
 ex. Dominique Pizzie  
 ex. [@DomPizzie](https://twitter.com/dompizzie)
 
@@ -47,12 +43,6 @@ ex. [@DomPizzie](https://twitter.com/dompizzie)
 * 0.2
     * Various bug fixes and optimizations
     * See [commit change]() or See [release history]()
-* 0.1
-    * Initial Release
-
-## License
-
-This project is licensed under the [NAME HERE] License - see the LICENSE.md file for details
 
 ## Acknowledgments
 
