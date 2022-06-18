@@ -7,7 +7,7 @@ J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linea
 
 ## DNN-WPE and VACE-WPE
 * DNN-WPE (or neural WPE): Exploits a DNN to estimate the power spectra of the desired (dereverberated) signal.
-* VACE-WPE: A neural WPE variant designed to exploit dual-channel neural WPE algorithm in a single-microphone setup. Employs another DNN to generate a virtual signal, and the pair of actual (observed) signal and virtual signal are directly introduced to the dual-channel neural WPE.
+* VACE-WPE: A neural WPE variant designed to exploit dual-channel neural WPE algorithm in a single-microphone setup. Employs another DNN(=VACENet) to generate a virtual signal, and the pair of actual (observed) signal and virtual signal are directly introduced to the dual-channel neural WPE. The VACENet is trained end-to-end such that a desired target signal obtained as the output of the dual-channel neural WPE.
 
 
 ## Run
