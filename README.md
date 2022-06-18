@@ -14,7 +14,7 @@ J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linea
 ```
 python run.py
 ```
-* Neural WPE: Neural WPE algorithm for speech dereverberation
+* Neural WPE: Neural WPE algorithm for speech dereverberation.
 * Drv-VACE-WPE: VACE-WPE trained to produce noisy early-arriving signals.
 * Dns-VACE-WPE: VACE-WPE trained to produce noise-free early-arriving signals.
 * TSO_N-VACE-WPE: Additionially fine-tuned Drv-VACE-WPE to produce noisy early-arriving signals, but within the task-specific optimization (TSO) framework by using a pretrained deep speaker embedding (DSE) model.
