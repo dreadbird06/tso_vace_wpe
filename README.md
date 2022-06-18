@@ -14,31 +14,10 @@ J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linea
 ```
 python run.py
 ```
-
-
-### Executing program
-
-* How to run the program
-* Step-by-step bullets
-```
-code blocks for commands
-```
-
-## Help
-
-Any advise for common problems or issues.
-```
-command to run if program contains helper info
-```
-
-ex. Dominique Pizzie  
-ex. [@DomPizzie](https://twitter.com/dompizzie)
-
-## Version History
-
-* 0.2
-    * Various bug fixes and optimizations
-    * See [commit change]() or See [release history]()
+* Neural WPE: Neural WPE algorithm for speech dereverberation
+* Drv-VACE-WPE: VACE-WPE trained to output noisy early-arriving signals.
+* Dns-VACE-WPE: VACE-WPE trained to output noise-free early-arriving signals.
+* TSO_\mathcal{N}-VACE-WPE
 
 ## Acknowledgments
 
