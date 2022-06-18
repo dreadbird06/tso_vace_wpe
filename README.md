@@ -21,5 +21,5 @@ python run.py
 * TSO_C-VACE-WPE: Additionially fine-tuned Drv-VACE-WPE to produce noise-free early-arriving signals, but within the TSO framework by using a pretrained DSE model.
 * DR-TSO_C-VACE-WPE: Additionially fine-tuned Drv-VACE-WPE to produce noise-free early-arriving signals, but within the distortion-regularized (DR) TSO framework by using a pretrained DSE model.
 
-## Reference codes
+## Reference codes for WPE implementation
 * [NARA-WPE](https://github.com/fgnt/nara_wpe)
