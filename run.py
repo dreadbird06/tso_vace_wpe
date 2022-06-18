@@ -46,7 +46,7 @@ def apply_drc(audio, drc_ratio=0.25, n_pop=100, dtype='float32'):
   normalizer = 1.0 if normalized else float(2**15)
   ## compute MMD
   audio_sorted = np.sort(audio.squeeze(), axis=-1)  # either (N,) or (D, N)
-  audio_mmd = audio_sorted[..., -1:-n_pop-1:-1].mean(dtype=dtype) \
+  audio_mmd = audio_sorted[..., -n_pop:].mean(dtype=dtype) \
             - audio_sorted[..., :n_pop].mean(dtype=dtype)
   drange_gain = 2 * (normalizer/audio_mmd) * drc_ratio
   return (audio * drange_gain).astype(dtype), drange_gain.astype(dtype)
