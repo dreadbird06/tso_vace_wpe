@@ -5,7 +5,7 @@ Official implementation of the deep neural network (DNN)-based weighted predicti
 J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linear Prediction-based Speech Dereverberation Front-End for Far-Field Speaker Verification," *arXiv:2112.13569*, 2021. ([link](https://arxiv.org/abs/2112.13569))
 
 
-## Background
+## DNN-WPE and VACE-WPE
 * DNN-WPE (or neural WPE): Exploits a DNN to estimate the power spectra of the desired (dereverberated) signal.
 * VACE-WPE: A neural WPE variant designed to exploit dual-channel neural WPE algorithm in a single-microphone setup. Employs another DNN to generate a virtual signal, and the pair of actual (observed) signal and virtual signals are directly introduced to the dual-channel neural WPE.
 
@@ -22,6 +22,4 @@ python run.py
 * DR-TSO_C-VACE-WPE: Additionially fine-tuned Drv-VACE-WPE to produce noise-free early-arriving signals, but within the distortion-regularized (DR) TSO framework by using a pretrained DSE model.
 
 ## Reference codes
-
-Inspiration, code snippets, etc.
 * [NARA-WPE](https://github.com/fgnt/nara_wpe)
