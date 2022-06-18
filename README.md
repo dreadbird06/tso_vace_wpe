@@ -1,12 +1,13 @@
 # tso_vace_wpe
-Official implementation of the weighted prediction error (WPE) algorithm variants presented in [[1]](#1).
+Official implementation of the deep neural network (DNN)-based weighted prediction error (WPE) algorithm and virtual acoustic channel expansion (VACE)-WPE algorithm variants presented in [[1]](#1).
 
 <a id="1">[1]</a> 
 J.-Y. Yang and J.-H. Chang, "Task-specific Optimization of Virtual Channel Linear Prediction-based Speech Dereverberation Front-End for Far-Field Speaker Verification," *arXiv:2112.13569*, 2021. ([link](https://arxiv.org/abs/2112.13569))
 
 
 ## Description
-An in-depth paragraph about your project and overview of use.
+DNN-WPE (or neural WPE): Exploits a DNN to estimate the power spectra of the desired (dereverberated) signal.
+VACE-WPE: A neural WPE variant designed to exploit dual-channel neural WPE algorithm in a single-microphone setup.
 
 
 ## Getting Started
