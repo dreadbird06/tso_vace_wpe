@@ -302,7 +302,9 @@ class VACENet(CustomModel):
     ## If the input is batched waveforms, compute STFT coefficients;
     ## otherwise, the input must be STFT coefficients.
     if x.dim() < 3:
-      x = self.stft_helper.stft(x) # (B, F, T, 2)
+      x = self.stft_helper.stft(x) # (B,F,T,2)
+    if torch.is_complex(x):
+      x = torch.view_as_real(x)
 
     ## Input normalization
     # x = self.input_norm(x)
@@ -314,7 +316,7 @@ class VACENet(CustomModel):
         dim=-1)
 
     ## Transpose to pass to the Conv2D layers
-    x = x.permute(0, 3, 1, 2) # (B, C=2, F, T)
+    x = x.permute(0, 3, 1, 2) # (B,C=2,F,T)
 
     ## First encoder stream
     renc1_hd, renc1_h2 = self.renc1(x, drop=drop)
@@ -357,8 +359,8 @@ class VACENet(CustomModel):
       input_aux=torch.cat((renc1_h2, ienc1_h2), dim=1), drop=drop)
 
     ## Output 1x1 Conv2D layer
-    v = self.conv2d_out(dec1_h1) # (B, 2, F, T)
-    v = v.permute(0, 2, 3, 1)    # (B, F, T, 2)
+    v = self.conv2d_out(dec1_h1) # (B,2,F,T)
+    v = v.permute(0, 2, 3, 1)    # (B,F,T,2)
 
     ## Fake scaling
     v = v / self.fake_scale
@@ -369,11 +371,11 @@ class VACENet(CustomModel):
 
   def get_loss(self, sig_x, sig_y, alpha, beta, gamma, drop=0.0, summarize=False):
     """ Both "sig_x" and "sig_y" are batched time-domain waveforms """
-    stft_v = self.forward(sig_x, drop=drop) # (B, F, T, 2)
-    stft_y = self.stft_helper.stft(sig_y)  # (B, F, T, 2)
-    lms_v, lms_y = spo.stft2lms(stft_v), spo.stft2lms(stft_y) # (B, F, T)
-    sig_v = self.stft_helper.istft(stft_v, length=sig_x.size(1)) # (B, T)
-    # sig_y = self.stft_helper.istft(stft_y, length=sig_x.size(1)) # (B, T)
+    stft_v = self.forward(sig_x, drop=drop) # (B,F,T,2)
+    stft_y = self.stft_helper.stft(sig_y)  # (B,F,T,2)
+    lms_v, lms_y = spo.stft2lms(stft_v), spo.stft2lms(stft_y) # (B,F,T)
+    sig_v = self.stft_helper.istft(stft_v, length=sig_x.size(1)) # (B,T)
+    # sig_y = self.stft_helper.istft(stft_y, length=sig_x.size(1)) # (B,T)
 
     mse_stft_r_vy = self.loss_mse(stft_v[..., 0], stft_y[..., 0])
     mse_stft_i_vy = self.loss_mse(stft_v[..., 1], stft_y[..., 1])
@@ -397,12 +399,12 @@ class VACENet(CustomModel):
 
   def get_loss_v2(self, sig_x, sig_y, alpha, beta, gamma, delta, drop=0.0, summarize=False):
     """ Both "sig_x" and "sig_y" are batched time-domain waveforms """
-    stft_v = self.forward(sig_x, drop=drop) # (B, F, T, 2)
-    stft_y = self.stft_helper.stft(sig_y)  # (B, F, T, 2)
-    mag_v, lms_v = spo.stft2maglms(stft_v) # (B, F, T)
-    mag_y, lms_y = spo.stft2maglms(stft_y) # (B, F, T)
-    sig_v = self.stft_helper.istft(stft_v, length=sig_x.size(1)) # (B, T)
-    # sig_y = self.stft_helper.istft(stft_y, length=sig_x.size(1)) # (B, T)
+    stft_v = self.forward(sig_x, drop=drop) # (B,F,T,2)
+    stft_y = self.stft_helper.stft(sig_y)  # (B,F,T,2)
+    mag_v, lms_v = spo.stft2maglms(stft_v) # (B,F,T)
+    mag_y, lms_y = spo.stft2maglms(stft_y) # (B,F,T)
+    sig_v = self.stft_helper.istft(stft_v, length=sig_x.size(1)) # (B,T)
+    # sig_y = self.stft_helper.istft(stft_y, length=sig_x.size(1)) # (B,T)
 
     mse_stft_r_vy = self.loss_mse(stft_v[..., 0], stft_y[..., 0])
     mse_stft_i_vy = self.loss_mse(stft_v[..., 1], stft_y[..., 1])

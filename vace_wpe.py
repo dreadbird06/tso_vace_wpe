@@ -2,10 +2,10 @@
 author: Joon-Young Yang (E-mail: dreadbird06@gmail.com)
 """
 import numpy as np
+import soundfile as sf
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from torch_custom.torch_utils import shape, to_gpu, to_arr
 from torch_custom.custom_layers import CustomModel, update_dict
@@ -14,7 +14,8 @@ from torch_custom.stft_helper import StftHelper
 import torch_custom.spectral_ops as spo
 from torch_custom.spectral_ops import MelFeatureExtractor
 
-from torch_custom.wpe_th_utils import wpe_mb_torch_ri
+from torch_custom.signal_utils import signal_framing
+from torch_custom.wpe_th_utils import wpe_mb_torch
 
 
 # class VACEWPE(nn.Module):
@@ -58,13 +59,13 @@ class VACEWPE(CustomModel):
     data, target = to_gpu(data, device), to_gpu(target, device)
     return data, target
 
-  def forward(self, sig_x, delay=3, taps=10, drop=0.0):
+  def forward(self, sig_x, delay=3, taps=10, drop=0.0, ref_ch=0):
     """ sig_x is batched single-channel time-domain waveforms 
         shape: (B, T) == (batch, time)
     """
     ## Convert the time-domain signal to the STFT coefficients
     nb, nt = sig_x.size() # (B,t)
-    stft_x = self.stft_helper.stft(sig_x) # (B,F,T,2)
+    stft_x = self.stft_helper.stft(sig_x) # (B,F,T(,2))
 
     ## Compute early PSD using the LPSNet
     lps_x = spo.stft2lps(stft_x) # (B,F,T)
@@ -74,36 +75,67 @@ class VACEWPE(CustomModel):
     stft_v = self.vacenet(stft_x, drop=drop) # (B,F,T,2)
 
     ## Stack the pair of actual and virtual signals
-    stft_xv = torch.stack((stft_x, stft_v), dim=1) # (B,C=2,F,T,2)
+    if torch.is_complex(stft_x):
+      stft_v = torch.complex(stft_v[..., 0], stft_v[..., 1])
+    stft_xv = torch.stack((stft_x, stft_v), dim=1) # (B,C=2,F,T(,2))
 
     ## Batch-mode WPE
-    ## >> STFT and PSD must be in shape (B,C,F,T,2) and (B,F,T), respectively.
+    ## >> STFT and PSD must be in shape (B,C,F,T(,2)) and (B,F,T), respectively.
     nfreq, nfrm = psd_x.size(1), psd_x.size(2)
-    stft_wpe = wpe_mb_torch_ri(
-      stft_xv, psd_x, taps=taps, delay=delay) # (B,C=2,F,T,2)
+    stft_wpe = wpe_mb_torch(
+      stft_xv, psd_x, taps=taps, delay=delay, ref_ch=ref_ch) # (B,C=2,F,T(,2))
 
     ## Inverse STFT
-    stft_wpe_x, stft_wpe_v = stft_wpe[:,0], stft_wpe[:,1] # (B,F,T,2)
+    stft_wpe_x = stft_wpe[:,0]
     sig_wpe_x = self.stft_helper.istft(stft_wpe_x, length=nt) # (B,t)
     return sig_wpe_x, stft_wpe_x, lps_x, stft_v
 
-  def dereverb(self, sig_x, delay=3, taps=10):
-    sig_wpe_x = self.forward(sig_x, delay, taps)[0]
-    return to_arr(sig_wpe_x).squeeze()
-    return self.forward(sig_x, delay, taps)[0]
+  def dereverb(self, sig_x, delay=3, taps=10, max_dur=16000*120, ref_ch=0):
+    if isinstance(sig_x, str):
+      sig_x, fs = sf.read(sig_x, dtype='float32')
+    if sig_x.ndim == 1:
+      sig_x = sig_x[None] # (B=1,t)
+    if isinstance(sig_x, np.ndarray):
+      sig_x = torch.from_numpy(sig_x)
+
+    sig_dur = sig_x.size(-1)
+    if sig_dur <= max_dur:
+      sig_wpe_x = self.forward(
+        sig_x.to(self.device), delay, taps, ref_ch=ref_ch)[0]
+      sig_wpe_x = to_arr(sig_wpe_x).squeeze()
+    else:
+      sig_wpe_x = []
+      sig_x_frm = signal_framing(sig_x, max_dur, max_dur, dim=-1)[0] # (B,t)
+      nb = sig_x_frm.size(0)
+      res_dur = sig_dur - nb*max_dur
+      for i in range(nb):
+        sig_wpe_x_frm = self.forward(
+          sig_x_frm[[i]].to(self.device), delay, taps, ref_ch=ref_ch)[0]
+        sig_wpe_x_frm = to_arr(sig_wpe_x_frm).squeeze()
+        sig_wpe_x.append(sig_wpe_x_frm)
+      if res_dur > 0:
+        sig_wpe_x_frm = self.forward(
+          sig_x[..., -max_dur:].to(self.device), delay, taps, ref_ch=ref_ch)[0]
+        sig_wpe_x_frm = to_arr(sig_wpe_x_frm).squeeze()
+        sig_wpe_x.append(sig_wpe_x_frm[..., -res_dur:])
+      sig_wpe_x = np.concatenate(sig_wpe_x, axis=-1)
+    return sig_wpe_x
 
   def get_loss(self, sig_x, sig_early, delay, taps, 
                alpha, beta, gamma, drop=0.0, summarize=False):
     """ Both "sig_x" and "sig_early" are batched time-domain waveforms """
     sig_wpe_x, stft_wpe_x, lps_x, stft_v = \
-      self.forward(sig_x, delay, taps, drop=drop) # (B,t)
-    # stft_wpe_x = self.stft_helper.stft(sig_wpe_x) # (B,F,T,2)
-    stft_early = self.stft_helper.stft(sig_early) # (B,F,T,2)
+      self.forward(sig_x, delay, taps, drop=drop, ref_ch=0) # (B,t)
+    stft_early = self.stft_helper.stft(sig_early) # (B,F,T(,2))
     lms_wpe_x = spo.stft2lms(stft_wpe_x) # (B,F,T)
     lms_early = spo.stft2lms(stft_early) # (B,F,T)
 
-    mse_stft_r_wpe = self.loss_mse(stft_wpe_x[..., 0], stft_early[..., 0])
-    mse_stft_i_wpe = self.loss_mse(stft_wpe_x[..., 1], stft_early[..., 1])
+    if torch.is_complex(stft_wpe_x):
+      mse_stft_r_wpe = self.loss_mse(stft_wpe_x.real, stft_early.real)
+      mse_stft_i_wpe = self.loss_mse(stft_wpe_x.imag, stft_early.imag)
+    else:
+      mse_stft_r_wpe = self.loss_mse(stft_wpe_x[..., 0], stft_early[..., 0])
+      mse_stft_i_wpe = self.loss_mse(stft_wpe_x[..., 1], stft_early[..., 1])
     mse_lms_wpe = self.loss_mse(lms_wpe_x, lms_early)
     mae_wav_wpe = self.loss_mae(sig_wpe_x, sig_early)
 
@@ -133,16 +165,19 @@ class VACEWPE(CustomModel):
                     drop=0.0, summarize=False):
     """ Both "sig_x" and "sig_early" are batched time-domain waveforms """
     sig_wpe_x, stft_wpe_x, lps_x, stft_v = \
-      self.forward(sig_x, delay, taps, drop=drop) # (B,t)
-    # stft_wpe_x = self.stft_helper.stft(sig_wpe_x) # (B,F,T,2)
-    stft_early = self.stft_helper.stft(sig_early) # (B,F,T,2)
+      self.forward(sig_x, delay, taps, drop=drop, ref_ch=0) # (B,t)
+    stft_early = self.stft_helper.stft(sig_early) # (B,F,T(,2))
     lms_wpe_x = spo.stft2lms(stft_wpe_x) # (B,F,T)
     lms_early = spo.stft2lms(stft_early) # (B,F,T)
     mfcc_wpe_x = self.melfeatext.mfcc(stft_wpe_x, power_scale=power_scale)
     mfcc_early = self.melfeatext.mfcc(stft_early, power_scale=power_scale)
 
-    mse_stft_r_wpe = self.loss_mse(stft_wpe_x[..., 0], stft_early[..., 0])
-    mse_stft_i_wpe = self.loss_mse(stft_wpe_x[..., 1], stft_early[..., 1])
+    if torch.is_complex(stft_wpe_x):
+      mse_stft_r_wpe = self.loss_mse(stft_wpe_x.real, stft_early.real)
+      mse_stft_i_wpe = self.loss_mse(stft_wpe_x.imag, stft_early.imag)
+    else:
+      mse_stft_r_wpe = self.loss_mse(stft_wpe_x[..., 0], stft_early[..., 0])
+      mse_stft_i_wpe = self.loss_mse(stft_wpe_x[..., 1], stft_early[..., 1])
     mse_lms_wpe = self.loss_mse(lms_wpe_x, lms_early)
     mae_wav_wpe = self.loss_mae(sig_wpe_x, sig_early)
     mae_mfcc_wpe = self.loss_mae(mfcc_wpe_x, mfcc_early)
@@ -181,8 +216,10 @@ if __name__=="__main__":
   use_cuda = torch.cuda.is_available()
   device = torch.device("cuda" if use_cuda else "cpu")
   print('device = {}'.format(device))
-  # device = "cpu"
+  device = "cpu"
 
+  # torch.seed(1)
+  torch.manual_seed(1)
 
   ## STFT options
   stft_opts_torch = dict(
@@ -196,8 +233,8 @@ if __name__=="__main__":
     lifter_type='sinusoidal', lift=-22.0) # only useful during fine-tuning
 
   ## Input tensors
-  sig_x = torch.randn(6, 44800).to(device) # assume a mini-batch of waveforms
-  sig_early = torch.randn(6, 44800).to(device)
+  sig_x = torch.randn(2, 44800).to(device) # assume a mini-batch of waveforms
+  sig_early = torch.randn(2, 44800).to(device)
 
 
   ## VACEMet
@@ -246,8 +283,14 @@ if __name__=="__main__":
   loss = vace_wpe.get_loss_mfcc(
     sig_x, sig_early, delay=3, taps=5, 
     **loss_scales ,drop=0.0, summarize=False)
+  # loss_scales = dict(alpha=1.0, beta=0.1, gamma=5.0)
+  # loss = vace_wpe.get_loss(
+  #   sig_x, sig_early, delay=3, taps=5, 
+  #   **loss_scales ,drop=0.0, summarize=False)
+  print('loss = %.7f' % loss.item())
   ## L2-regularization
   total_loss = loss + (1e-5)*kernel_l2_norm
+  print('total_loss = %.7f' % total_loss.item())
   ## Compute gradients
   total_loss.backward()
   print('Succeeded!!')

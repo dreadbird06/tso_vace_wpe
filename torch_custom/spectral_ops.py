@@ -184,12 +184,18 @@ def dct_type2(x, norm=None):
   x = x.contiguous().view(-1, N)
 
   v = torch.cat([x[:, ::2], x[:, 1::2].flip([1])], dim=1)
-  Vc = torch.rfft(v, 1, onesided=False)
+  if torch.__version__ < '1.8':
+    Vc = torch.rfft(v, 1, onesided=False)
+    Vc_r, Vc_i = Vc[..., 0], Vc[..., 1]
+  else:
+    # Vc = torch.fft.fft(v, n=v.size(-1), dim=-1)
+    Vc = torch.fft.fft(v, dim=-1)
+    Vc_r, Vc_i = Vc.real, Vc.imag
 
-  k = -torch.arange(N, dtype=x.dtype, device=x.device)[None, :] * np.pi / (2*N)
+  k = -torch.arange(N, dtype=x.dtype, device=x.device)[None] * np.pi / (2*N)
   W_r, W_i = torch.cos(k), torch.sin(k)
 
-  V = Vc[:, :, 0]*W_r - Vc[:, :, 1]*W_i
+  V = Vc_r*W_r - Vc_i*W_i
   if norm == 'ortho':
     V[:, 0] /= np.sqrt(N) * 2
     V[:, 1:] /= np.sqrt(N/2) * 2
@@ -261,8 +267,9 @@ class SpectralFeatureExtractor(nn.Module):
     self.stft_helper = StftHelper(**stft_opts)
 
     nfft = stft_opts['n_fft']
-    if len(mel_opts):
+    if mel_opts is not None and len(mel_opts):
       melfb = trfbank(**mel_opts)#fs, nfft, lowfreq, maxfreq, nlinfilt, nlogfilt) # (M,F)
+      self.mel_dim = melfb.size(0)
       self.register_buffer('melfb', melfb)
     if nceps:
       lifter = cepstral_lifter(nceps, lift=lift, inverse=False)
@@ -272,6 +279,9 @@ class SpectralFeatureExtractor(nn.Module):
   def stft(self, wave, center=True):
     """ wave in shape (B,t) """
     return self.stft_helper.stft(wave, center=center) # (B,F,T,2)
+
+  def istft(self, coefs, length=None):
+    return self.stft_helper.istft(coefs, length=length)
 
   def mfbe(self, wave, power_scale=True, apply_log=True, eps=1.19209e-07, center=True):
     """ wave in shape (B,t) """
@@ -309,28 +319,51 @@ class SpectralFeatureExtractor(nn.Module):
 
 
 
-def polar2rect(mag, pha):
-  return mag*pha.cos(), mag*pha.sin()
+def polar2rect(mag, pha, return_complex=False):
+  coefs_r, coefs_i = mag*pha.cos(), mag*pha.sin()
+  if return_complex:
+    return torch.complex(coefs_r, coefs_i)
+  else:
+    return coefs_r, coefs_i
 
-def polar2stft(mag, pha):
+def polar2stft(mag, pha, return_complex=False):
   coefs_r, coefs_i = polar2rect(mag, pha)
-  return torch.stack((coefs_r, coefs_i), dim=-1)
+  if return_complex:
+    return torch.complex(coefs_r, coefs_i)
+  else:
+    return torch.stack((coefs_r, coefs_i), dim=-1)
 
 def stft2polar(coefs):
+  if torch.is_complex(coefs):
+    coefs = torch.view_as_real(coefs)
   coefs_r, coefs_i = coefs[..., 0], coefs[..., 1]
   mag = torch.sqrt(coefs_r**2 + coefs_i**2)
   pha = torch.atan2(coefs_i, coefs_r)
   return mag, pha
 
 def stft2rect(coefs):
+  if torch.is_complex(coefs):
+    coefs = torch.view_as_real(coefs)
   coefs_r, coefs_i = coefs[..., 0], coefs[..., 1]
   return coefs_r, coefs_i
 
 def stft2mag(coefs):
-  return torch.sqrt(coefs[..., 0]**2 + coefs[..., 1]**2)
+  if torch.is_complex(coefs):
+    return coefs.abs()
+  else:
+    return torch.sqrt(coefs[..., 0]**2 + coefs[..., 1]**2)
+
+def stft2pha(coefs, eps=1e-7):
+  if torch.is_complex(coefs):
+    return torch.atan2(coefs.imag, coefs.real)
+  else:
+    return torch.atan2(coefs[..., 1], coefs[..., 0])
 
 def stft2lms(coefs, eps=1.19209e-07):
-  mag = torch.sqrt(coefs[..., 0]**2 + coefs[..., 1]**2)
+  if torch.is_complex(coefs):
+    mag = coefs.abs()
+  else:
+    mag = torch.sqrt(coefs[..., 0]**2 + coefs[..., 1]**2)
   return torch.log(mag + eps)
 
 def stft2maglms(coefs, eps=1.19209e-07):
@@ -338,11 +371,17 @@ def stft2maglms(coefs, eps=1.19209e-07):
   return mag, torch.log(mag + eps)
 
 def stft2lps(coefs, eps=1.19209e-07):
-  pspec = coefs[..., 0]**2 + coefs[..., 1]**2
+  if torch.is_complex(coefs):
+    pspec = coefs.abs().square()
+  else:
+    pspec = coefs[..., 0]**2 + coefs[..., 1]**2
   return torch.log(pspec + eps)
 
 def stft2ps(coefs):
-  return coefs[..., 0]**2 + coefs[..., 1]**2
+  if torch.is_complex(coefs):
+    return coefs.real.square() + coefs.imag.square()
+  else:
+    return coefs[..., 0]**2 + coefs[..., 1]**2
 
 def stft2cms(coefs, alpha=0.3):
   """ Power-law compressed magnitude spectrum """

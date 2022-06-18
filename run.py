@@ -167,11 +167,11 @@ def run_neural_wpe(wpath, chs='single', dtype=torch.float64):
   if chs == 'single':
     aud = aud[None] # (channels=1, samples)
     taps = taps1
-  if chs == 'dual':
-    aud2, fs2 = sf.read(sample_wav2, dtype='float32')
-    aud2 = aud2 * drc_gain
-    aud = np.stack((aud, aud2), axis=0) # (channels=2, samples)
-    taps = taps2
+  # if chs == 'dual':
+  #   aud2, fs2 = sf.read(sample_wav2, dtype='float32')
+  #   aud2 = aud2 * drc_gain
+  #   aud = np.stack((aud, aud2), axis=0) # (channels=2, samples)
+  #   taps = taps2
 
   ## Perform dereverberation
   aud = torch.from_numpy(aud)[None] # (batch, channels, samples)
@@ -181,9 +181,8 @@ def run_neural_wpe(wpath, chs='single', dtype=torch.float64):
       aud.to(device), delay=delay, taps=taps, dtype=dtype) # (t,)
   enh = to_arr(enh).squeeze() # convert to numpy array and squeeze
   ## Save
-  if chs == 'dual':
-    enh = enh[0] # only save the first channel
-  # print(enh.sum())
+  # if chs == 'dual':
+  #   enh = enh[0] # only save the first channel
   output_wav_path = f'data/nwpe_{chs}_taps{taps}.wav'
   sf.write(output_wav_path, data=enh, samplerate=fs)
 
@@ -202,11 +201,11 @@ def run_iterative_wpe(wpath, chs='single', n_iter=1, dtype=torch.float64):
   if chs == 'single':
     aud = aud[None] # (channels=1, samples)
     taps = taps1
-  if chs == 'dual':
-    aud2, fs2 = sf.read(sample_wav2, dtype='float32')
-    aud2 = aud2 * drc_gain
-    aud = np.stack((aud, aud2), axis=0) # (channels=2, samples)
-    taps = taps2
+  # if chs == 'dual':
+  #   aud2, fs2 = sf.read(sample_wav2, dtype='float32')
+  #   aud2 = aud2 * drc_gain
+  #   aud = np.stack((aud, aud2), axis=0) # (channels=2, samples)
+  #   taps = taps2
 
   ## Perform dereverberation
   aud = torch.from_numpy(aud)[None] # (batch, channels, samples)
@@ -216,8 +215,8 @@ def run_iterative_wpe(wpath, chs='single', n_iter=1, dtype=torch.float64):
       aud.to(device), delay=delay, taps=taps, dtype=dtype) # (t,)
   enh = to_arr(enh).squeeze() # convert to numpy array and squeeze
   ## Save
-  if chs == 'dual':
-    enh = enh[0] # only save the first channel
+  # if chs == 'dual':
+  #   enh = enh[0] # only save the first channel
   output_wav_path = f'data/iwpe_{chs}_taps{taps}_iter{n_iter}.wav'
   sf.write(output_wav_path, data=enh, samplerate=fs)
 
@@ -230,8 +229,8 @@ if __name__=="__main__":
   # sample_wav2 = 'data/AMI_WSJ20-Array1-2_T10c0201.wav'
 
   sample_wav = 'data/VOiCES_2019_Challenge_SID_eval_1327.wav' # babble noise
-  # sample_wav = 'data/VOiCES_2019_Challenge_SID_eval_8058.wav' # ambient noise
-  # sample_wav = 'data/VOiCES_2019_Challenge_SID_eval_11391.wav' # music + vocal
+  sample_wav = 'data/VOiCES_2019_Challenge_SID_eval_8058.wav' # ambient noise
+  sample_wav = 'data/VOiCES_2019_Challenge_SID_eval_11391.wav' # music + vocal
 
 
 
@@ -242,8 +241,8 @@ if __name__=="__main__":
   sf.write(sample_wav_drc, data=aud, samplerate=fs)
 
   # ## Iterative WPE
-  # run_iterative_wpe('single', n_iter=1, dtype=dtype)
-  # ### run_iterative_wpe('dual', n_iter=1, dtype=dtype)
+  # run_iterative_wpe(sample_wav, 'single', n_iter=1, dtype=dtype)
+  # ### run_iterative_wpe(sample_wav, 'dual', n_iter=1, dtype=dtype)
 
   ## Neural WPE
   run_neural_wpe(sample_wav, 'single', dtype=dtype)

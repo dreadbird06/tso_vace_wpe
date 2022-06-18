@@ -129,14 +129,14 @@ class LstmDnnNet(CustomModel):
     ## If the input is batched waveforms, compute LPS features;
     ## otherwise, the input must be LPS features.
     if x.dim() < 3:
-      x = self.stft_helper.stft(x) # (B, F, T, 2)
-      x = spo.stft2lps(x)          # (B, F, T)
+      x = self.stft_helper.stft(x) # (B,F,T,2)
+      x = spo.stft2lps(x)          # (B,F,T)
 
     ## Input normalization
     x = self.input_norm(x)
 
     ## LSTM layers
-    x = x.transpose(1, 2) # (B, T, F)
+    x = x.transpose(1, 2) # (B,T,F)
     x = self.lstm(x, drop)
 
     ## Dense layers

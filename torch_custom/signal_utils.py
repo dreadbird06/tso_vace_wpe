@@ -56,11 +56,13 @@ def pad_for_stft(sig, winLen=400, center=True, pad_mode='constant'):
 def torch_vad(sig, winLen=400, winSht=160, ener_thres=5.7, 
               mean_scale=0.5, prop_thres=0.12, frm_context=2, 
               twice_log_max_signed_int16=20.794354380710768, 
-              eps=1.19209e-07):
+              eps=1.19209e-07, center=False):
   """ Equivalent to KALDI's energy-based VAD implementation 
       (https://github.com/kaldi-asr/kaldi/blob/master/src/ivector/voice-activity-detection.cc)
   """
   ## Framing
+  if center:
+    sig = F.pad(sig, (winLen-winSht, winLen-winSht))
   framed = signal_framing(
     sig, frame_length=winLen, frame_step=winSht, dim=1)
   ## DC removal

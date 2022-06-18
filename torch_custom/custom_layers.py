@@ -64,26 +64,25 @@ class CustomModel(nn.Module):
 
   # @property
   # def weights_l2_norm(self):
-  #   return torch.sum(torch.stack(
-  #     [get_l2_norm(w) for w in self.weights]))
+  #   return sum([get_l2_norm(w) for w in self.weights])
 
-  # @property
   def weights_l2_norm(self):
-    # l2_norms = {name:get_l2_norm(w) for name, w in self.weights.items()}
-    # l2_norm_sum = torch.sum(torch.stack(list(l2_norms.values())))
-    # return l2_norm_sum, l2_norms
     l2_norms = [get_l2_norm(w) for w in self.weights_list]
-    l2_norm_sum = torch.sum(torch.stack(l2_norms))
+    l2_norm_sum = sum(l2_norms)
     l2_norm_dict = {key:val for key,val in zip(self.weights_name, l2_norms)}
     return l2_norm_sum, l2_norm_dict
 
   @property
   def size(self):
-    num_params = 0
-    for param in self.parameters():
-      # if param.requires_grad:
-      num_params += param.numel()
-    return num_params/float(1e+6)
+    return sum(p.numel() for p in self.parameters()) / float(1e+6)
+
+  @property
+  def size_trainable(self):
+    return sum(p.numel() for p in self.parameters() if p.requires_grad) / float(1e+6)
+
+  @property
+  def device(self):
+    return next(self.parameters()).device
 
   def freeze(self):
     for param in self.parameters():
@@ -92,8 +91,6 @@ class CustomModel(nn.Module):
   def unfreeze(self):
     for param in self.parameters():
       param.requires_grad_(True)
-    # for param in self.non_parameters:
-    #   param.requires_grad_(False)
 
   def freeze_named(self, exclude=[]):
     if isinstance(exclude, str): exclude = [exclude]
